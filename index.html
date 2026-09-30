@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Post-Lecture Quiz</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1d2233;--mu:#666d85;--ac:#4f46e5;--ac2:#eef0ff;--bd:#e2e5f0;--bad:#dc2626;--ok:#16a34a}
+@media (prefers-color-scheme:dark){:root{--bg:#12141c;--card:#1c1f2b;--tx:#e8eaf3;--mu:#9aa0b8;--ac:#818cf8;--ac2:#262a44;--bd:#2c3042}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5}
+.wrap{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.35rem;margin:0 0 4px}h2{font-size:1.1rem;margin:0 0 10px}
+.sub{color:var(--mu);margin:0 0 16px;font-size:.92rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:14px}
+.steps{display:flex;gap:6px;margin-bottom:16px}.steps i{flex:1;height:5px;border-radius:3px;background:var(--bd)}.steps i.on{background:var(--ac)}
+input[type=text],input[type=password],input[type=number],textarea{width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit;margin:4px 0 10px}
+textarea{height:230px;font-family:ui-monospace,monospace;font-size:.85rem}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:10px 16px}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}button:disabled{opacity:.45}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.opt{display:block;width:100%;text-align:left;margin-top:8px}.opt.sel{background:var(--ac2);border-color:var(--ac)}
+.meta{display:flex;justify-content:space-between;color:var(--mu);font-size:.85rem;margin-bottom:8px}
+.likert{display:flex;gap:6px;margin-top:8px}.likert button{flex:1;padding:8px 0}.likert button.sel{background:var(--ac);color:#fff;border-color:var(--ac)}
+.note{font-size:.8rem;color:var(--mu)}.err{color:var(--bad);font-size:.9rem}.ok{color:var(--ok);font-size:.9rem}
+label{font-size:.88rem;color:var(--mu)}a{color:var(--ac)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>📝 Post-Lecture Quiz</h1>
+<div class="steps"><i id="s0"></i><i id="s1"></i><i id="s2"></i><i id="s3"></i></div>
+<div id="app"></div>
+</div>
+<script>
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbxi72GwN_jvQsieyjd6VKMH32BcSEpLttnmPN8p6Tuxp8Hl6ifR2JPoWKnZV1jUsvJO/exec';   // <-- paste your Apps Script web app URL
+const LIK=["I was able to concentrate during the lecture.","I stayed mentally present and kept my mind from wandering.","I was interested in what the teacher was explaining.","I found it easy to stay focused until the end.","I was able to ignore distractions around me."];
+const $=id=>document.getElementById(id),app=$('app');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let quiz=null,S={},poll=null,pw='';
+const step=n=>{for(let i=0;i<4;i++)$('s'+i).className=i<=n?'on':''};
+const stopPoll=()=>{clearInterval(poll);poll=null};
+document.addEventListener('click',()=>{if(S.track)S.clicks++});
+const api=async b=>(await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(b)})).json();
+const getQuiz=async()=>(await fetch(SCRIPT_URL+'?t='+Date.now())).json();
+
+/* ---------- Student: waiting / login ---------- */
+function home(){stopPoll();step(0);S={};
+ if(SCRIPT_URL.startsWith('PASTE')){app.innerHTML='<div class="card"><h2>Setup needed</h2><p>Paste your Apps Script web app URL into SCRIPT_URL in index.html.</p></div>';return}
+ app.innerHTML='<div class="card" id="st">Checking for today\'s quiz…</div><p class="note"><a href="#" id="tl">Teacher</a></p>';
+ $('tl').onclick=e=>{e.preventDefault();stopPoll();tLogin()};
+ const check=async()=>{
+  try{quiz=await getQuiz()}catch(e){$('st').innerHTML='<p class="err">Cannot reach the server. Check your internet connection; retrying…</p>';return}
+  if(!quiz.open){$('st').innerHTML='<h2>⏳ Waiting for the teacher</h2><p class="sub">The quiz appears here automatically. Keep this page open.</p>';return}
+  stopPoll();login()};
+ check();poll=setInterval(check,5000)}
+function login(){
+ app.innerHTML=`<div class="card"><h2>${esc(quiz.subject)}: ${esc(quiz.topic)}</h2><p class="sub">${quiz.questions.length} questions, about 5 minutes. You may skip a question.</p>
+ <label>Roll number / ID</label><input type="text" id="sid" autocomplete="off">
+ <label style="display:flex;gap:8px;align-items:flex-start;margin-top:6px"><input type="checkbox" id="cn" style="margin-top:4px"><span>I agree to take part voluntarily. My responses are used only for research and are stored against my ID, not my name.</span></label>
+ <div id="er" class="err"></div><div class="row"><button class="p" id="go">Start quiz →</button></div></div>`;
+ $('go').onclick=()=>{const id=$('sid').value.trim();
+  if(!id)return $('er').textContent='Please enter your ID.';
+  if(!$('cn').checked)return $('er').textContent='Please tick the consent box.';
+  S={id,clicks:0,ans:[],rt:[],qi:0,likert:Array(5).fill(0),track:true};showQ()}}
+function showQ(){step(1);const q=quiz.questions[S.qi];S.qStart=Date.now();S.sel=null;
+ app.innerHTML=`<div class="card"><div class="meta"><span>Question ${S.qi+1} of ${quiz.questions.length}</span><span>Skip = unanswered</span></div><h2>${esc(q.q)}</h2>${q.o.map((t,j)=>`<button class="opt" data-j="${j}">${esc(t)}</button>`).join('')}<div class="row"><button class="p" id="sb" disabled>Submit</button><button id="sk">Skip</button></div></div>`;
+ app.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{S.sel=+b.dataset.j;app.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');$('sb').disabled=false});
+ $('sb').onclick=()=>nextQ(S.sel);$('sk').onclick=()=>nextQ(null)}
+function nextQ(v){S.rt.push(+((Date.now()-S.qStart)/1000).toFixed(1));S.ans.push(v);S.qi++;S.qi<quiz.questions.length?showQ():survey()}
+function survey(){step(2);S.track=false;
+ app.innerHTML=`<div class="card"><h2>How focused were you in the lecture?</h2><p class="sub">1 = strongly disagree, 5 = strongly agree.</p>${LIK.map((l,i)=>`<div style="margin-bottom:14px"><div>${i+1}. ${l}</div><div class="likert" data-i="${i}">${[1,2,3,4,5].map(n=>`<button data-n="${n}">${n}</button>`).join('')}</div></div>`).join('')}<div class="row"><button class="p" id="fin" disabled>Submit</button></div></div>`;
+ app.querySelectorAll('.likert').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.likert[+g.dataset.i]=+b.dataset.n;g.querySelectorAll('button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');$('fin').disabled=S.likert.includes(0)}));
+ $('fin').onclick=send}
+async function send(){
+ app.innerHTML='<div class="card"><p>Submitting…</p></div>';
+ try{const r=await api({action:'submit',quiz_id:quiz.id,student_id:S.id,answers:S.ans,rts:S.rt,likert:S.likert,clicks:S.clicks});
+  if(r.ok)done(`You scored <b>${r.correct}/${r.total}</b>.`);
+  else if(r.error==='already')done('Your response was already recorded.');
+  else fail(r.error)}
+ catch(e){fail('Network problem. Your answers are kept; please retry.')}}
+function fail(m){app.innerHTML=`<div class="card"><h2>Could not submit</h2><p class="err">${esc(m)}</p><div class="row"><button class="p" id="rt">Retry</button><button id="hm">Start over</button></div></div>`;$('rt').onclick=send;$('hm').onclick=home}
+function done(m){step(3);app.innerHTML=`<div class="card"><h2>Thank you, ${esc(S.id)}! ✅</h2><p>${m}</p><div class="row"><button id="nx">Next student</button></div></div>`;$('nx').onclick=home}
+
+/* ---------- Teacher ---------- */
+function tLogin(){step(0);
+ app.innerHTML='<div class="card"><h2>🔒 Teacher password</h2><input type="password" id="pw" autocomplete="off"><div id="pe" class="err"></div><div class="row"><button class="p" id="ok">Unlock</button><button id="bk">Back</button></div></div>';
+ const go=async()=>{$('pe').textContent='Checking…';try{const r=await api({action:'auth',pw:$('pw').value});if(r.ok){pw=$('pw').value;tPanel()}else $('pe').textContent='Incorrect password.'}catch(e){$('pe').textContent='Cannot reach the server.'}};
+ $('ok').onclick=go;$('pw').onkeydown=e=>{if(e.key==='Enter')go()};$('bk').onclick=home;$('pw').focus()}
+function parseQs(t){const res=[];
+ t.trim().split(/\n\s*\n/).filter(b=>b.trim()).forEach((b,n)=>{let q='',ans=null;const map={};
+  b.split('\n').map(x=>x.trim()).filter(Boolean).forEach(l=>{let m;
+   if(m=l.match(/^answer\s*[:\-]\s*([A-D])/i))ans=m[1].toUpperCase();
+   else if(m=l.match(/^([A-D])[\)\.:]\s*(.+)/i))map[m[1].toUpperCase()]=m[2];
+   else q+=(q?' ':'')+l.replace(/^(q\s*\d*|\d+)\s*[:\.\)]\s*/i,'')});
+  const L=['A','B','C','D'].filter(x=>map[x]);
+  if(!q)throw Error('Question '+(n+1)+': no question text');
+  if(L.length<2)throw Error('Question '+(n+1)+': needs at least 2 options (A) B) ...)');
+  if(!ans||!L.includes(ans))throw Error('Question '+(n+1)+': add a line like "Answer: B"');
+  res.push({q,o:L.map(x=>map[x]),a:L.indexOf(ans)})});
+ if(!res.length)throw Error('No questions found');return res}
+async function tPanel(){
+ app.innerHTML=`<div class="card"><h2>Publish today's quiz</h2><p class="note" id="cur">Checking current quiz…</p>
+ <label>Subject</label><input type="text" id="sj" placeholder="e.g. Data Structures">
+ <label>Topic taught</label><input type="text" id="tp" placeholder="e.g. Linked lists">
+ <label>Lecture duration (minutes)</label><input type="number" id="lm" value="60" min="1">
+ <label>Questions: one block per question, blank line between blocks</label>
+ <textarea id="qt" placeholder="Q: What does a linked list node store?&#10;A) Only data&#10;B) Data and a pointer&#10;C) Only a pointer&#10;D) Nothing&#10;Answer: B&#10;&#10;Q: Next question...&#10;A) ...&#10;B) ...&#10;Answer: A"></textarea>
+ <div id="msg"></div><div class="row"><button class="p" id="pub">Publish quiz</button><button id="cl">Close current quiz</button><button id="bk">Back</button></div>
+ <p class="note">Publishing replaces the current quiz. Students see it within a few seconds.</p></div>`;
+ $('bk').onclick=home;
+ getQuiz().then(q=>$('cur').textContent=q.open?'Currently open: '+q.subject+' – '+q.topic+' ('+q.id+')':'No quiz is open right now.').catch(()=>$('cur').textContent='Could not check the current quiz.');
+ $('pub').onclick=async()=>{const m=$('msg');m.className='err';
+  let qs;try{qs=parseQs($('qt').value)}catch(e){m.textContent=e.message;return}
+  const sj=$('sj').value.trim(),tp=$('tp').value.trim();if(!sj||!tp){m.textContent='Enter subject and topic.';return}
+  m.className='note';m.textContent='Publishing…';
+  try{const r=await api({action:'publish',pw,subject:sj,topic:tp,lecMin:+$('lm').value||0,questions:qs});
+   if(r.ok){m.className='ok';m.textContent='Published '+qs.length+' questions ('+r.id+'). Students can start now.';$('cur').textContent='Currently open: '+sj+' – '+tp+' ('+r.id+')'}
+   else{m.className='err';m.textContent=r.error}}catch(e){m.className='err';m.textContent='Could not reach the server.'}};
+ $('cl').onclick=async()=>{const m=$('msg');try{const r=await api({action:'close',pw});m.className=r.ok?'ok':'err';m.textContent=r.ok?'Quiz closed.':r.error;if(r.ok)$('cur').textContent='No quiz is open right now.'}catch(e){m.className='err';m.textContent='Could not reach the server.'}}}
+home();
+</script>
+</body>
+</html>
