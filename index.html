@@ -53,7 +53,7 @@ function home(){stopPoll();step(0);S={};
   try{quiz=await getQuiz()}catch(e){$('st').innerHTML='<p class="err">Cannot reach the server. Check your internet connection; retrying…</p>';return}
   if(!quiz.open){$('st').innerHTML='<h2>⏳ Waiting for the teacher</h2><p class="sub">The quiz appears here automatically. Keep this page open.</p>';return}
   stopPoll();login()};
- check();poll=setInterval(check,5000)}
+ check();poll=setInterval(check,15000)}
 function login(){
  app.innerHTML=`<div class="card"><h2>${esc(quiz.subject)}: ${esc(quiz.topic)}</h2><p class="sub">${quiz.questions.length} questions, about 5 minutes. You may skip a question.</p>
  <label>Roll number / ID</label><input type="text" id="sid" autocomplete="off">
